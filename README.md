@@ -1,6 +1,6 @@
 # 🏆 CodeforcesHub
 
-![CodeforcesHub](https://cf.way2go.adsp.id/logo.png) <!-- Replace with your actual logo if you have one -->
+![CodeforcesHub](https://codeforces.com/codeforces.org/s/44188/android-icon-192x192.png) <!-- Replace with your actual logo if you have one -->
 
 CodeforcesHub is a powerful, open-source Chrome Extension that automatically integrates your Accepted Codeforces submissions directly to your GitHub repository. It acts as your personal competitive programming portfolio builder, ensuring you never lose track of your hard-earned solutions.
 
