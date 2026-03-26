@@ -39,10 +39,18 @@ document.getElementById('btn-auth-github').addEventListener('click', async () =>
     const data = await response.json();
     
     if (data.user_code) {
-      authStatus.innerHTML = `Please copy this code: <b>${data.user_code}</b><br>and enter it at <a href="${data.verification_uri}" target="_blank">${data.verification_uri}</a>`;
-      chrome.tabs.create({ url: data.verification_uri });
+      try {
+        await navigator.clipboard.writeText(data.user_code);
+        authStatus.innerHTML = `Copied code: <b style="font-size: 16px;">${data.user_code}</b><br><br><a href="${data.verification_uri}" target="_blank" style="color: #0366d6; text-decoration: underline;">Click here to Authorize on GitHub</a>`;
+      } catch (e) {
+        authStatus.innerHTML = `Please copy this code: <b style="font-size: 16px;">${data.user_code}</b><br><br><a href="${data.verification_uri}" target="_blank" style="color: #0366d6; text-decoration: underline;">Click here to Authorize on GitHub</a>`;
+      }
       
-      pollForToken(data.device_code, data.interval);
+      chrome.runtime.sendMessage({
+        type: 'START_POLLING',
+        deviceCode: data.device_code,
+        interval: data.interval
+      });
     } else {
       authStatus.innerText = 'Failed to get authorization code. Check Client ID.';
     }
@@ -51,42 +59,6 @@ document.getElementById('btn-auth-github').addEventListener('click', async () =>
     console.error(error);
   }
 });
-
-function pollForToken(deviceCode, intervalSeconds) {
-  const authStatus = document.getElementById('auth-status');
-  const pollInterval = setInterval(async () => {
-    try {
-      const resp = await fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          client_id: CLIENT_ID,
-          device_code: deviceCode,
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        })
-      });
-      
-      const tokenData = await resp.json();
-      
-      if (tokenData.access_token) {
-        clearInterval(pollInterval);
-        chrome.storage.local.set({ github_token: tokenData.access_token });
-        authStatus.innerText = 'Successfully authenticated with GitHub!';
-        document.getElementById('btn-auth-github').innerText = '✅ GitHub Authenticated';
-        document.getElementById('btn-auth-github').disabled = true;
-      } else if (tokenData.error !== 'authorization_pending') {
-        clearInterval(pollInterval);
-        authStatus.innerText = 'Authorization failed or expired. Please try again.';
-      }
-    } catch (err) {
-      clearInterval(pollInterval);
-      authStatus.innerText = 'Network error while polling for token.';
-    }
-  }, intervalSeconds * 1000);
-}
 document.getElementById('save-cf-handle').addEventListener('click', async () => {
   const handle = document.getElementById('cf-handle').value.trim();
   const repo = document.getElementById('gh-repo').value.trim();

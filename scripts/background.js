@@ -7,6 +7,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; 
   }
 
+  if (request.type === 'START_POLLING') {
+    pollForToken(request.deviceCode, request.interval);
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (request.type === 'UPLOAD_TO_GITHUB') {
     handleUpload(request.payload).then(() => {
       sendResponse({ success: true });
@@ -112,4 +118,42 @@ This repository contains my accepted Codeforces solutions, automatically process
 
   const contentB64 = btoa(unescape(encodeURIComponent(decodedContent)));
   await uploadFile(token, repo, filepath, contentB64, `Update Root README with ${displayId}`, sha);
+}
+
+function pollForToken(deviceCode, intervalSeconds) {
+  const CLIENT_ID = 'Ov23li44ueEaLhRt3Zzj';
+  const pollInterval = setInterval(async () => {
+    try {
+      const resp = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          client_id: CLIENT_ID,
+          device_code: deviceCode,
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+        })
+      });
+      
+      const tokenData = await resp.json();
+      
+      if (tokenData.access_token) {
+        clearInterval(pollInterval);
+        chrome.storage.local.set({ github_token: tokenData.access_token }, () => {
+          console.log("GitHub token authenticated and saved!");
+        });
+      } else if (tokenData.error === 'slow_down') {
+        console.warn("Polling too fast, waiting...", tokenData);
+        // Do not clear the interval, GitHub expects us to keep polling but slower.
+      } else if (tokenData.error !== 'authorization_pending') {
+        clearInterval(pollInterval);
+        console.error("Authorization failed or expired:", tokenData.error, tokenData.error_description || tokenData);
+      }
+    } catch (err) {
+      clearInterval(pollInterval);
+      console.error('Network error while polling for token.', err);
+    }
+  }, intervalSeconds * 1000);
 }
