@@ -1,6 +1,6 @@
 const CLIENT_ID = 'Ov23li44ueEaLhRt3Zzj';
 
-chrome.storage.local.get(['cf_handle', 'github_token', 'github_repo'], function(data) {
+chrome.storage.local.get(['cf_handle', 'github_token', 'github_repo', 'pending_device_code', 'pending_interval'], function(data) {
   if (data.cf_handle) {
     document.getElementById('cf-handle').value = data.cf_handle;
   }
@@ -12,10 +12,35 @@ chrome.storage.local.get(['cf_handle', 'github_token', 'github_repo'], function(
   if (data.github_token) {
     document.getElementById('btn-auth-github').innerText = '✅ GitHub Authenticated';
     document.getElementById('btn-auth-github').disabled = true;
+    document.getElementById('auth-status').innerText = 'Ready!';
+  } else if (data.pending_device_code) {
+    document.getElementById('auth-status').innerText = 'Resuming authorization check...';
+    // Resume polling in case background worker slept when popup closed
+    chrome.runtime.sendMessage({
+      type: 'START_POLLING',
+      deviceCode: data.pending_device_code,
+      interval: data.pending_interval || 5
+    });
   }
 
   if (data.cf_handle && data.github_token && data.github_repo) {
     document.getElementById('cf-status').innerText = 'Ready to sync!';
+  }
+});
+
+// Always update UI instantly if background script succeeds while popup is open
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.github_token) {
+    document.getElementById('btn-auth-github').innerText = '✅ GitHub Authenticated';
+    document.getElementById('btn-auth-github').disabled = true;
+    document.getElementById('auth-status').innerText = 'Successfully authenticated with GitHub!';
+    
+    // Check if everything else is ready
+    chrome.storage.local.get(['cf_handle', 'github_repo'], (data) => {
+      if (data.cf_handle && data.github_repo) {
+        document.getElementById('cf-status').innerText = 'Ready to sync!';
+      }
+    });
   }
 });
 
@@ -39,6 +64,12 @@ document.getElementById('btn-auth-github').addEventListener('click', async () =>
     const data = await response.json();
     
     if (data.user_code) {
+      // Save pending state so we survive popup closing
+      chrome.storage.local.set({ 
+        pending_device_code: data.device_code,
+        pending_interval: data.interval
+      });
+
       try {
         await navigator.clipboard.writeText(data.user_code);
         authStatus.innerHTML = `Copied code: <b style="font-size: 16px;">${data.user_code}</b><br><br><a href="${data.verification_uri}" target="_blank" style="color: #0366d6; text-decoration: underline;">Click here to Authorize on GitHub</a>`;

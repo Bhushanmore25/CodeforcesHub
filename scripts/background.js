@@ -1,3 +1,4 @@
+let active_polls = {};
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'AUTH_SUCCESS') {
@@ -8,7 +9,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.type === 'START_POLLING') {
-    pollForToken(request.deviceCode, request.interval);
+    if (!active_polls[request.deviceCode]) {
+      pollForToken(request.deviceCode, request.interval);
+    }
     sendResponse({ success: true });
     return true;
   }
@@ -122,6 +125,8 @@ This repository contains my accepted Codeforces solutions, automatically process
 
 function pollForToken(deviceCode, intervalSeconds) {
   const CLIENT_ID = 'Ov23li44ueEaLhRt3Zzj';
+  if (active_polls[deviceCode]) clearInterval(active_polls[deviceCode]);
+
   const pollInterval = setInterval(async () => {
     try {
       const resp = await fetch('https://github.com/login/oauth/access_token', {
@@ -141,7 +146,9 @@ function pollForToken(deviceCode, intervalSeconds) {
       
       if (tokenData.access_token) {
         clearInterval(pollInterval);
+        delete active_polls[deviceCode];
         chrome.storage.local.set({ github_token: tokenData.access_token }, () => {
+          chrome.storage.local.remove(['pending_device_code', 'pending_interval']);
           console.log("GitHub token authenticated and saved!");
         });
       } else if (tokenData.error === 'slow_down') {
@@ -149,11 +156,16 @@ function pollForToken(deviceCode, intervalSeconds) {
         // Do not clear the interval, GitHub expects us to keep polling but slower.
       } else if (tokenData.error !== 'authorization_pending') {
         clearInterval(pollInterval);
+        delete active_polls[deviceCode];
+        chrome.storage.local.remove(['pending_device_code', 'pending_interval']);
         console.error("Authorization failed or expired:", tokenData.error, tokenData.error_description || tokenData);
       }
     } catch (err) {
       clearInterval(pollInterval);
+      delete active_polls[deviceCode];
       console.error('Network error while polling for token.', err);
     }
   }, intervalSeconds * 1000);
+  
+  active_polls[deviceCode] = pollInterval;
 }
