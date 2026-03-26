@@ -48,18 +48,6 @@ That's it! Just go to [Codeforces](https://codeforces.com) and start solving. Yo
 
 ---
 
-## ❓ FAQ
-
-### Is it safe to publicize my `CLIENT_ID`?
-**Yes!** A GitHub OAuth **Client ID** is completely safe to be public. It is intended to be distributed with your client application (like this Chrome extension). What you must **never** share is the **Client Secret**. Because CodeforcesHub uses the *Device Authorization Flow*, it is specifically designed to operate entirely without a Client Secret, making it perfectly secure and industry-standard!
-
-### Why isn't my code uploading?
-Make sure:
-1. You have created an empty repository on GitHub that exactly matches what you typed in the extension.
-2. You successfully completed the GitHub authentication flow.
-3. Your submission actually resulted in an "Accepted" verdict.
-
----
 
 ## 🛠️ Built With
 - Vanilla JavaScript (ES6+)
