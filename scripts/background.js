@@ -153,7 +153,6 @@ function pollForToken(deviceCode, intervalSeconds) {
         });
       } else if (tokenData.error === 'slow_down') {
         console.warn("Polling too fast, waiting...", tokenData);
-        // Do not clear the interval, GitHub expects us to keep polling but slower.
       } else if (tokenData.error !== 'authorization_pending') {
         clearInterval(pollInterval);
         delete active_polls[deviceCode];

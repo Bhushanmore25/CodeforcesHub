@@ -15,7 +15,7 @@ chrome.storage.local.get(['cf_handle', 'github_token', 'github_repo', 'pending_d
     document.getElementById('auth-status').innerText = 'Ready!';
   } else if (data.pending_device_code) {
     document.getElementById('auth-status').innerText = 'Resuming authorization check...';
-    // Resume polling in case background worker slept when popup closed
+    
     chrome.runtime.sendMessage({
       type: 'START_POLLING',
       deviceCode: data.pending_device_code,
@@ -27,15 +27,12 @@ chrome.storage.local.get(['cf_handle', 'github_token', 'github_repo', 'pending_d
     document.getElementById('cf-status').innerText = 'Ready to sync!';
   }
 });
-
-// Always update UI instantly if background script succeeds while popup is open
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local' && changes.github_token) {
     document.getElementById('btn-auth-github').innerText = '✅ GitHub Authenticated';
     document.getElementById('btn-auth-github').disabled = true;
     document.getElementById('auth-status').innerText = 'Successfully authenticated with GitHub!';
     
-    // Check if everything else is ready
     chrome.storage.local.get(['cf_handle', 'github_repo'], (data) => {
       if (data.cf_handle && data.github_repo) {
         document.getElementById('cf-status').innerText = 'Ready to sync!';
@@ -64,7 +61,6 @@ document.getElementById('btn-auth-github').addEventListener('click', async () =>
     const data = await response.json();
     
     if (data.user_code) {
-      // Save pending state so we survive popup closing
       chrome.storage.local.set({ 
         pending_device_code: data.device_code,
         pending_interval: data.interval
